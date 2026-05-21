@@ -1,0 +1,20 @@
+{
+    "name": "clusteringplugin",
+    "version": "0.1.0",
+    "dependencies": [
+        "mlpack"
+    ],
+    "builtin-baseline":"e5a4f54c0d562059e9ccc6f7e7150667da58fe41",
+    "overrides": [
+        { "name": "armadillo", "version": "14.4.1#1" },
+        { "name": "blas", "version": "2023-04-14#6" },
+        { "name": "cereal", "version": "1.3.2#1" },
+        { "name": "clapack", "version": "3.2.1#25" },
+        { "name": "ensmallen", "version": "2.21.1#1" },
+        { "name": "lapack", "version": "2023-06-10#4" },
+        { "name": "lapack-reference", "version": "3.12.1#3" },
+        { "name": "mlpack", "version": "4.7.0#0" },
+        { "name": "openblas", "version": "0.3.33#0" },
+        { "name": "stb", "version": "2024-07-29#1" }
+    ]
+}
