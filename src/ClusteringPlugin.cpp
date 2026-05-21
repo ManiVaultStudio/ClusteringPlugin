@@ -34,10 +34,6 @@ namespace
         const size_t numPoints = dataset->getNumPoints();
         const size_t numDimsTotal = dataset->getNumDimensions();
 
-        qDebug() << "numPoints:" << numPoints;
-        qDebug() << "numDimsTotal:" << numDimsTotal;
-        qDebug() << "numDimsEnabled:" << numDimsEnabled;
-
         data.resize(numPoints * numDimsEnabled);
 
         for (std::uint32_t i = 0; i < numDimsTotal; i++) {
@@ -144,21 +140,32 @@ void ClusteringPlugin::cluster()
     auto inputDataset = getInputDataset<Points>();
     auto outputDataset = getOutputDataset<Clusters>();
 
-    auto& task = outputDataset->getTask();
-
     // Disable the settings when computing
     _settingsAction.setEnabled(false);
 
+    const QString clusterAlgorithm = _settingsAction.getCurrentClusterAlgorithmName();
+    qDebug() << "ClusterAlgorithm:" << clusterAlgorithm;
+
+    auto& task = outputDataset->getTask();
     task.reset();
+    task.setProgressMode(mv::Task::ProgressMode::Manual);
     task.setRunning();
-    task.setName("Clustering " + inputDataset->getLocation());
-    task.setProgressDescription("Initializing");
+    task.setName(clusterAlgorithm);
+    task.setProgress(0.1f, "Initializing");
+    QCoreApplication::processEvents();
 
     // data is row-major [pt0_dim0, pt0_dim1, pt1_dim0, pt1_dim1, ...]
     // but armadillo wants colum major so we have to create a copy and transpose
     arma::mat dataset;
     {
         auto [flatData, indices, numDimensions, numPoints] = extractEnabledDimensions(inputDataset);
+
+        if (numDimensions == 0 || numPoints == 0)
+        {
+            qWarning() << "No dimensions enabled";
+            task.setFinished();
+            return;
+        }
 
         dataset = arma::conv_to<arma::mat>::from(
             arma::fmat(
@@ -172,15 +179,14 @@ void ClusteringPlugin::cluster()
 
     }
 
-    task.setProgressDescription("Clustering");
+    task.setProgress(0.2f, "Clustering");
+    QCoreApplication::processEvents();
 
     // Cluster
     arma::Row<size_t> assignments;  // shape: [1 x numPoints]
     size_t numClusters = 0;
 
     {
-        qDebug() << "ClusterAlgorithm:" << _settingsAction.getCurrentClusterAlgorithmName();
-
         switch (_settingsAction.getCurrentClusterAlgorithm())
         {
         case SettingsAction::ClusterAlgorithm::KMeans: 
@@ -196,7 +202,12 @@ void ClusteringPlugin::cluster()
                 arma::mat centroids;            // shape: [numDimensions x numClusters]
                 const double radiusMultiplier = _settingsAction.getMeanShiftRAction().getValue();
                 mlpack::MeanShift ms;
+
                 const double radiusEstimate = ms.EstimateRadius(dataset, 0.2);
+
+                task.setProgress(0.5f, "Clustering");
+                QCoreApplication::processEvents();
+
                 ms.Radius(radiusEstimate * radiusMultiplier);
                 ms.MaxIterations() = _settingsAction.getNumIterAction().getValue();
                 ms.Cluster(dataset, assignments, centroids, false, true);
@@ -225,12 +236,13 @@ void ClusteringPlugin::cluster()
                 break;
             }
         }
-
+        
         assert(assignments.n_rows == 1);
         assert(assignments.n_cols == inputDataset->getNumPoints());
     }
 
-    task.setProgress(0.7f);
+    task.setProgress(0.8f, "Assigning cluster IDs");
+    QCoreApplication::processEvents();
 
     // Assign cluster IDs to point IDs
     std::vector<std::vector<std::uint32_t>> clusters(numClusters);
@@ -253,8 +265,6 @@ void ClusteringPlugin::cluster()
         auto& singleCluster = clusters.emplace_back();
         singleCluster.resize(assignments.n_cols, 0);
     }
-
-    task.setProgress(0.8f);
 
     // Remove existing clusters
     outputDataset->getClusters().clear();
@@ -284,9 +294,10 @@ void ClusteringPlugin::cluster()
         clusterIndex++;
     }
 
-    updateClusterColors(); // call notifyDatasetDataChanged(outputDataset)
+    updateClusterColors(); // calls notifyDatasetDataChanged(outputDataset)
 
     task.setFinished();
+    QCoreApplication::processEvents();
 
     _settingsAction.setEnabled(true);
 }
