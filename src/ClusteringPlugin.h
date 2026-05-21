@@ -67,5 +67,5 @@ public:
      * @param datasets Vector of input datasets
      * @return Vector of plugin trigger actions
      */
-    PluginTriggerActions getPluginTriggerActions(const mv::Datasets& datasets) const override;
+    mv::gui::PluginTriggerActions getPluginTriggerActions(const mv::Datasets& datasets) const override;
 };

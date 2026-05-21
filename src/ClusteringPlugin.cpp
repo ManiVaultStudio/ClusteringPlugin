@@ -13,13 +13,13 @@
 #include <vector>
 
 #include <armadillo>
+#include <mlpack/methods/dbscan/dbscan.hpp>
 #include <mlpack/methods/kmeans/kmeans.hpp>
+#include <mlpack/methods/mean_shift/mean_shift.hpp>
 
 Q_PLUGIN_METADATA(IID "studio.manivault.ClusteringPlugin")
 
-using namespace mv;
 using namespace mv::gui;
-using namespace mv::util;
 using namespace mv::plugin;
 
 namespace
@@ -122,7 +122,7 @@ void ClusteringPlugin::init()
 
 void ClusteringPlugin::updateClusterColors()
 {
-    switch (const auto colorBy = static_cast<SettingsAction::ColorBy>(_settingsAction.getColorByAction().getCurrentIndex())) {
+    switch (static_cast<SettingsAction::ColorBy>(_settingsAction.getColorByAction().getCurrentIndex())) {
     case SettingsAction::ColorBy::PseudoRandomColors:
         Cluster::colorizeClusters(
             getOutputDataset<Clusters>()->getClusters(), 
@@ -176,25 +176,69 @@ void ClusteringPlugin::cluster()
 
     // Cluster
     arma::Row<size_t> assignments;  // shape: [1 x numPoints]
-    const size_t numClusters = _settingsAction.getKMeansK().getValue();
+    size_t numClusters = 0;
 
     {
-        arma::mat centroids;            // shape: [numDimensions x numClusters], not used for now
+        qDebug() << "ClusterAlgorithm:" << _settingsAction.getCurrentClusterAlgorithmName();
 
-        mlpack::KMeans kmeans;
-        kmeans.Cluster(dataset, numClusters, assignments, centroids);
-        assert(assignments.n_elem == inputDataset->getNumPoints());
-        assert(centroids.n_rows == inputDataset->getNumDimensions());
-        assert(centroids.n_cols == numClusters);
+        switch (_settingsAction.getCurrentClusterAlgorithm())
+        {
+        case SettingsAction::ClusterAlgorithm::KMeans: 
+            {
+                numClusters = _settingsAction.getKMeansKAction().getValue();
+                mlpack::KMeans kmeans;
+                kmeans.MaxIterations() = _settingsAction.getNumIterAction().getValue();
+                kmeans.Cluster(dataset, numClusters, assignments, false);
+                break;
+            }
+        case SettingsAction::ClusterAlgorithm::MeanShift:
+            {
+                arma::mat centroids;            // shape: [numDimensions x numClusters]
+                const double radiusMultiplier = _settingsAction.getMeanShiftRAction().getValue();
+                mlpack::MeanShift ms;
+                const double radiusEstimate = ms.EstimateRadius(dataset, 0.2);
+                ms.Radius(radiusEstimate * radiusMultiplier);
+                ms.MaxIterations() = _settingsAction.getNumIterAction().getValue();
+                ms.Cluster(dataset, assignments, centroids, false, true);
+                numClusters = centroids.n_cols;
+                break;
+            }
+        case SettingsAction::ClusterAlgorithm::DBSCAN:
+            {
+                const double eps = _settingsAction.getDBSCANepsAction().getValue();
+                const std::int32_t minSize = _settingsAction.getDBSCANminSizeAction().getValue();
+                mlpack::DBSCAN dbscan(eps, minSize, true);
+                dbscan.Cluster(dataset, assignments);
+
+                // points that cannot be associated with any cluster are assigned
+                // the id std::numeric_limits<size_t> which we want to replace
+                const arma::Row clusterIds = arma::unique(assignments);
+                numClusters = clusterIds.n_elem;
+
+                const size_t lastClusterId = (numClusters != 0) ? numClusters - 1 : 0;
+
+                assignments.elem(
+                    arma::find(
+                        assignments == std::numeric_limits<size_t>::max())
+                ).fill(lastClusterId);
+
+                break;
+            }
+        }
+
+        assert(assignments.n_rows == 1);
+        assert(assignments.n_cols == inputDataset->getNumPoints());
     }
 
     task.setProgress(0.7f);
 
     // Assign cluster IDs to point IDs
     std::vector<std::vector<std::uint32_t>> clusters(numClusters);
+
+    if(numClusters > 0)
     {
         std::vector<std::uint32_t> counts(numClusters, 0);
-        for (size_t i = 0; i < assignments.n_elem; ++i)
+        for (size_t i = 0; i < assignments.n_elem; ++i) 
             ++counts[assignments[i]];
 
         for (size_t c = 0; c < numClusters; ++c)
@@ -202,6 +246,12 @@ void ClusteringPlugin::cluster()
 
         for (std::uint32_t i = 0; i < assignments.n_elem; ++i)
             clusters[assignments[i]].push_back(i);
+    }
+    else
+    {
+        numClusters++;
+        auto& singleCluster = clusters.emplace_back();
+        singleCluster.resize(assignments.n_cols, 0);
     }
 
     task.setProgress(0.8f);
@@ -234,7 +284,7 @@ void ClusteringPlugin::cluster()
         clusterIndex++;
     }
 
-    updateClusterColors(); // call notifyDatasetDataChanged(outputDataset_
+    updateClusterColors(); // call notifyDatasetDataChanged(outputDataset)
 
     task.setFinished();
 
