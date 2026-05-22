@@ -86,16 +86,6 @@ add_library(${ClusteringPlugin} SHARED ${SourcesClusteringPlugin} ${PluginInfoCl
 target_include_directories(${ClusteringPlugin} PRIVATE "${ManiVault_INCLUDE_DIR}")
 
 target_include_directories(${ClusteringPlugin} PRIVATE "${MLPACK_INCLUDE_DIRS}")
-    
-# -----------------------------------------------------------------------------
-# Target properties
-# -----------------------------------------------------------------------------
-target_compile_features(${ClusteringPlugin} PRIVATE cxx_std_20)
-
-set_target_properties(${ClusteringPlugin} PROPERTIES 
-    AUTOMOC ON
-    UNITY_BUILD ${MV_UNITY_BUILD}
-)
 
 # -----------------------------------------------------------------------------
 # Target library linking
@@ -112,6 +102,18 @@ target_link_libraries(${ClusteringPlugin} PRIVATE
     cereal::cereal
     ensmallen::ensmallen
 )
+
+# -----------------------------------------------------------------------------
+# Target properties
+# -----------------------------------------------------------------------------
+target_compile_features(${ClusteringPlugin} PRIVATE cxx_std_20)
+
+set_target_properties(${ClusteringPlugin} PROPERTIES 
+    AUTOMOC ON
+    UNITY_BUILD ${MV_UNITY_BUILD}
+)
+
+target_compile_definitions(${ClusteringPlugin} PRIVATE MLPACK_USE_SYSTEM_STB)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     message(STATUS "${ClusteringPlugin}: DO NOT link against openmp")
