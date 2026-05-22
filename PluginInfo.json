@@ -2,7 +2,7 @@
     "name" : "Clustering",
     "version" :  {
         "plugin" : "0.1.0",
-        "core" : ["1.5"]
+        "core" : ["1.4"]
     },
     "type" : "Analysis",    
     "dependencies" : ["Points", "Cluster"]
