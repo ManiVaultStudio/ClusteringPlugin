@@ -16,7 +16,7 @@ SettingsAction::SettingsAction(ClusteringPlugin* clusteringPlugin) :
     _clusterAlgorithmAction(this, "Algorithm", ClusterAlgorithmNames, ClusterAlgorithmNames[0]),
     _numIterationsAction(this, "Iterations", 1, 2000, 500),
     _KMeans_k_Action(this, "Clusters", 1, 250, 25),
-    _MeanShift_r_Action(this, "Radius multiplier", 0.1f, 10, 1, 1),
+    _MeanShift_r_Action(this, "Radius multiplier", 0.01f, 100, 1, 2),
     _DBSCAN_eps_Action(this, "Epsilon", 0.1f, 10, 1, 1),
     _DBSCAN_minSize_Action(this, "Min size", 1, 100, 5),
     _updateColorsManuallyAction(this, "Update colors manually", false),

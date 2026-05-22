@@ -202,8 +202,9 @@ void ClusteringPlugin::cluster()
                 arma::mat centroids;            // shape: [numDimensions x numClusters]
                 const double radiusMultiplier = _settingsAction.getMeanShiftRAction().getValue();
                 mlpack::MeanShift ms;
-
-                const double radiusEstimate = ms.EstimateRadius(dataset, 0.2);
+                
+                const double ratio = std::clamp(100.0 / dataset.n_cols, 0.001, 0.2);
+                const double radiusEstimate = ms.EstimateRadius(dataset, ratio);
 
                 task.setProgress(0.5f, "Clustering");
                 QCoreApplication::processEvents();
