@@ -1,6 +1,7 @@
 from conans import ConanFile
 from conan.tools.cmake import CMakeDeps, CMake, CMakeToolchain
 from conans.tools import save, load, os_info, SystemPackageTool
+import os
 import pathlib
 import subprocess
 from rules_support import PluginBranchInfo
@@ -93,9 +94,6 @@ class ClusteringPluginConan(ConanFile):
 
         tc.variables["Qt6_DIR"] = qt_dir
 
-        # Set some build options
-        tc.cache_variables["MV_UNITY_BUILD"] = "ON"
-        
         if os_info.is_macos:
             proc = subprocess.run("brew --prefix libomp", shell=True, capture_output=True)
             prefix_path = f"{proc.stdout.decode('UTF-8').strip()}"
@@ -106,7 +104,33 @@ class ClusteringPluginConan(ConanFile):
         manivault_dir = pathlib.Path(mv_core_root, "cmake", "mv").as_posix()
         print("ManiVault_DIR: ", manivault_dir)
         tc.variables["ManiVault_DIR"] = manivault_dir
+
+        # Set some build options
+        tc.cache_variables["MV_UNITY_BUILD"] = "ON"
         
+        if os.environ.get("VCPKG_ROOT", None):
+            vcpkg_dir = pathlib.Path(os.environ["VCPKG_ROOT"])
+            vcpkg_exe = vcpkg_dir / "vcpkg.exe" if self.settings.os == "Windows" else vcpkg_dir / "vcpkg" 
+            vcpkg_tc  = vcpkg_dir / "scripts" / "buildsystems" / "vcpkg.cmake"
+
+            vcpkg_triplet = "x64-windows-static-md"
+            if self.settings.os == "Macos":
+                vcpkg_triplet = "x64-osx"
+            if self.settings.os == "Linux":
+                vcpkg_triplet = "x64-linux"
+
+            print("vcpkg_dir: ", vcpkg_dir)
+            print("vcpkg_exe: ", vcpkg_exe)
+            print("vcpkg_tc: ", vcpkg_tc)
+            print("vcpkg_triplet: ", vcpkg_triplet)
+
+            tc.variables["VCPKG_LIBRARY_LINKAGE"]   = "static"
+            tc.variables["VCPKG_TARGET_TRIPLET"]    = vcpkg_triplet
+            tc.variables["VCPKG_HOST_TRIPLET"]      = vcpkg_triplet
+            tc.variables["VCPKG_ROOT"]              = vcpkg_dir.as_posix()
+
+            tc.variables["CMAKE_PROJECT_INCLUDE"]   = vcpkg_tc.as_posix()
+
         tc.generate()
 
     def _configure_cmake(self):
