@@ -107,7 +107,8 @@ class ClusteringPluginConan(ConanFile):
 
         # Set some build options
         tc.cache_variables["MV_UNITY_BUILD"] = "ON"
-        
+        tc.cache_variables["CMAKE_CONFIGURATION_TYPES"] = "RelWithDebInfo"
+                
         if os.environ.get("VCPKG_ROOT", None):
             vcpkg_dir = pathlib.Path(os.environ["VCPKG_ROOT"])
             vcpkg_exe = vcpkg_dir / "vcpkg.exe" if self.settings.os == "Windows" else vcpkg_dir / "vcpkg" 
