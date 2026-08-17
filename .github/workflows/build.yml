@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 env:
-  VCPKG_COMMIT_SHA: e5a4f54c0d562059e9ccc6f7e7150667da58fe41 # corresponds date 2026-05-20
+  VCPKG_COMMIT_SHA: 94a541197763a4f449a1b91478df48c0584a6256 # corresponds date 2026-08-15
 
 # for matrix check https://docs.github.com/en/actions/reference/specifications-for-github-hosted-runners
 jobs:
