@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 option(MV_UNITY_BUILD "Combine target source files into batches for faster compilation" OFF)
+option(MV_CLUSTERING_USE_AVX "Use AVX if available - by default ON" OFF)
 
 if(WIN32 AND NOT DEFINED VCPKG_LIBRARY_LINKAGE)
     set(VCPKG_HOST_TRIPLET "x64-windows-static-md" CACHE STRING "")
@@ -122,6 +123,9 @@ elseif(OpenMP_CXX_FOUND)
     message(STATUS "${ClusteringPlugin}: Linking against openmp")
     target_link_libraries(${ClusteringPlugin} PRIVATE OpenMP::OpenMP_CXX)
 endif()
+
+# Instruction sets
+mv_check_and_set_AVX(${ClusteringPlugin} ${MV_CLUSTERING_USE_AVX})
 
 # -----------------------------------------------------------------------------
 # Target installation
