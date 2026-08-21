@@ -116,7 +116,7 @@ class ClusteringPluginConan(ConanFile):
 
             vcpkg_triplet = "x64-windows-static-md"
             if self.settings.os == "Macos":
-                vcpkg_triplet = "x64-osx"
+                vcpkg_triplet = "arm64-osx"
             if self.settings.os == "Linux":
                 vcpkg_triplet = "x64-linux"
 
