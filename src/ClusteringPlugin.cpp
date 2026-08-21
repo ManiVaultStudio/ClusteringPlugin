@@ -187,61 +187,60 @@ void ClusteringPlugin::cluster()
     arma::Row<size_t> assignments;  // shape: [1 x numPoints]
     size_t numClusters = 0;
 
+    
+    switch (_settingsAction.getCurrentClusterAlgorithm())
     {
-        switch (_settingsAction.getCurrentClusterAlgorithm())
+    case SettingsAction::ClusterAlgorithm::KMeans: 
         {
-        case SettingsAction::ClusterAlgorithm::KMeans: 
-            {
-                numClusters = _settingsAction.getKMeansKAction().getValue();
-                mlpack::KMeans kmeans;
-                kmeans.MaxIterations() = _settingsAction.getNumIterAction().getValue();
-                kmeans.Cluster(dataset, numClusters, assignments, false);
-                break;
-            }
-        case SettingsAction::ClusterAlgorithm::MeanShift:
-            {
-                arma::mat centroids;            // shape: [numDimensions x numClusters]
-                const double radiusMultiplier = _settingsAction.getMeanShiftRAction().getValue();
-                mlpack::MeanShift ms;
-                
-                const double ratio = std::clamp(100.0 / dataset.n_cols, 0.001, 0.2);
-                const double radiusEstimate = ms.EstimateRadius(dataset, ratio);
-
-                task.setProgress(0.5f, "Clustering");
-                QCoreApplication::processEvents();
-
-                ms.Radius(radiusEstimate * radiusMultiplier);
-                ms.MaxIterations() = _settingsAction.getNumIterAction().getValue();
-                ms.Cluster(dataset, assignments, centroids, false, true);
-                numClusters = centroids.n_cols;
-                break;
-            }
-        case SettingsAction::ClusterAlgorithm::DBSCAN:
-            {
-                const double eps = _settingsAction.getDBSCANepsAction().getValue();
-                const std::int32_t minSize = _settingsAction.getDBSCANminSizeAction().getValue();
-                mlpack::DBSCAN dbscan(eps, minSize, true);
-                dbscan.Cluster(dataset, assignments);
-
-                // points that cannot be associated with any cluster are assigned
-                // the id std::numeric_limits<size_t> which we want to replace
-                const arma::Row clusterIds = arma::unique(assignments);
-                numClusters = clusterIds.n_elem;
-
-                const size_t lastClusterId = (numClusters != 0) ? numClusters - 1 : 0;
-
-                assignments.elem(
-                    arma::find(
-                        assignments == std::numeric_limits<size_t>::max())
-                ).fill(lastClusterId);
-
-                break;
-            }
+            numClusters = _settingsAction.getKMeansKAction().getValue();
+            mlpack::KMeans kmeans;
+            kmeans.MaxIterations() = _settingsAction.getNumIterAction().getValue();
+            kmeans.Cluster(dataset, numClusters, assignments, false);
+            break;
         }
-        
-        assert(assignments.n_rows == 1);
-        assert(assignments.n_cols == inputDataset->getNumPoints());
+    case SettingsAction::ClusterAlgorithm::MeanShift:
+        {
+            arma::mat centroids;            // shape: [numDimensions x numClusters]
+            const double radiusMultiplier = _settingsAction.getMeanShiftRAction().getValue();
+            mlpack::MeanShift ms;
+            
+            const double ratio = std::clamp(100.0 / dataset.n_cols, 0.001, 0.2);
+            const double radiusEstimate = ms.EstimateRadius(dataset, ratio);
+
+            task.setProgress(0.5f, "Clustering");
+            QCoreApplication::processEvents();
+
+            ms.Radius(radiusEstimate * radiusMultiplier);
+            ms.MaxIterations() = _settingsAction.getNumIterAction().getValue();
+            ms.Cluster(dataset, assignments, centroids, false, true);
+            numClusters = centroids.n_cols;
+            break;
+        }
+    case SettingsAction::ClusterAlgorithm::DBSCAN:
+        {
+            const double eps = _settingsAction.getDBSCANepsAction().getValue();
+            const std::int32_t minSize = _settingsAction.getDBSCANminSizeAction().getValue();
+            mlpack::DBSCAN dbscan(eps, minSize, true);
+            dbscan.Cluster(dataset, assignments);
+
+            // points that cannot be associated with any cluster are assigned
+            // the id std::numeric_limits<size_t> which we want to replace
+            const arma::Row clusterIds = arma::unique(assignments);
+            numClusters = clusterIds.n_elem;
+
+            const size_t lastClusterId = (numClusters != 0) ? numClusters - 1 : 0;
+
+            assignments.elem(
+                arma::find(
+                    assignments == std::numeric_limits<size_t>::max())
+            ).fill(lastClusterId);
+
+            break;
+        }
     }
+    
+    assert(assignments.n_rows == 1);
+    assert(assignments.n_cols == inputDataset->getNumPoints());
 
     task.setProgress(0.8f, "Assigning cluster IDs");
     QCoreApplication::processEvents();
@@ -275,21 +274,20 @@ void ClusteringPlugin::cluster()
     std::vector<std::uint32_t> globalIndices;
     inputDataset->getSourceDataset<Points>()->getGlobalIndices(globalIndices);
 
-    std::int32_t clusterIndex = 0;
+    std::int32_t clusterIndex = 1;
     for (auto& clusterIndicesLocal : clusters)
     {
-        Cluster cluster;
-
-        cluster.setName(QString("cluster %1").arg(QString::number(clusterIndex + 1)));
-
         std::vector<std::uint32_t> clusterIndicesGlobal;
-
         clusterIndicesGlobal.reserve(clusterIndicesLocal.size());
 
         for (auto clusterIndexLocal : clusterIndicesLocal)
             clusterIndicesGlobal.push_back(globalIndices[clusterIndexLocal]);
 
-        cluster.setIndices(clusterIndicesGlobal);
+        Cluster cluster = {
+            /* name  */   QString("cluster %1").arg(QString::number(clusterIndex)),
+            /* color */   Qt::gray, // will be set in updateClusterColors
+            /* indices */ clusterIndicesGlobal,
+        };
 
         outputDataset->addCluster(cluster);
 
