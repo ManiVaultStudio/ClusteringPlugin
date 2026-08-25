@@ -1,7 +1,7 @@
 {
     "name" : "Clustering",
     "version" :  {
-        "plugin" : "0.1.0",
+        "plugin" : "0.1.1",
         "core" : ["1.5"]
     },
     "type" : "Analysis",    
