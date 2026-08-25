@@ -143,6 +143,7 @@ add_custom_command(TARGET ${ClusteringPlugin} POST_BUILD
 )
 
 mv_handle_plugin_config(${ClusteringPlugin})
+mv_install_dependencies(${ClusteringPlugin})
 
 # -----------------------------------------------------------------------------
 # Misc
